@@ -144,14 +144,7 @@ func generateOneFile(gen *protogen.Plugin, file *protogen.File, f *fileInfo, var
 	for i, imps := 0, f.Desc.Imports(); i < imps.Len(); i++ {
 		genImport(gen, g, f, imps.Get(i))
 	}
-	// for _, message := range f.allMessages {
-	// 	for _, field := range message.Fields {
-	// 		forceStdTime := proto.GetExtension(field.Desc.Options(), extra.E_Stdtime).(bool)
-	// 		if forceStdTime {
 
-	// 		}
-	// 	}
-	// }
 	for _, enum := range f.allEnums {
 		genEnum(g, f, enum)
 	}
@@ -717,6 +710,12 @@ func fieldGoType(g *protogen.GeneratedFile, f *fileInfo, field *protogen.Field) 
 	if forceStdTime {
 		g.QualifiedGoIdent(timePackage.Ident("time"))
 		return "*time.Time", false
+	}
+
+	forceStdDuration := proto.GetExtension(field.Desc.Options(), extra.E_Stdduration).(bool)
+	if forceStdDuration {
+		g.QualifiedGoIdent(timePackage.Ident("time"))
+		return "*time.Duration", false
 	}
 
 	forcePointer := proto.GetExtension(field.Desc.Options(), extra.E_Pointer).(bool)
