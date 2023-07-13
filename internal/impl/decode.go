@@ -181,7 +181,12 @@ func (mi *MessageInfo) unmarshalPointerEager(b []byte, p pointer, groupTag proto
 				break
 			}
 			var o unmarshalOutput
-			o, err = f.funcs.unmarshal(b, p.Apply(f.offset), wtyp, f, opts)
+			fptr := p.Apply(f.offset)
+			if f.isEmbed {
+				_fptr := fptr.p
+				fptr = pointerOf(Pointer(&_fptr))
+			}
+			o, err = f.funcs.unmarshal(b, fptr, wtyp, f, opts)
 			n = o.n
 			if err != nil {
 				break
