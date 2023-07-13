@@ -703,6 +703,8 @@ func genMessageGetterMethods(g *protogen.GeneratedFile, f *fileInfo, m *messageI
 // If it returns pointer=true, the struct field is a pointer to the type.
 func fieldGoType(g *protogen.GeneratedFile, f *fileInfo, field *protogen.Field) (goType string, pointer bool) {
 
+	embedStruct := proto.GetExtension(field.Desc.Options(), protofif.E_Embed).(bool)
+
 	pointer = field.Desc.HasPresence()
 	switch field.Desc.Kind() {
 	case protoreflect.BoolKind:
@@ -727,7 +729,11 @@ func fieldGoType(g *protogen.GeneratedFile, f *fileInfo, field *protogen.Field) 
 		goType = "[]byte"
 		pointer = false // rely on nullability of slices for presence
 	case protoreflect.MessageKind, protoreflect.GroupKind:
-		goType = "*" + g.QualifiedGoIdent(field.Message.GoIdent)
+		if embedStruct {
+			goType = g.QualifiedGoIdent(field.Message.GoIdent)
+		} else {
+			goType = "*" + g.QualifiedGoIdent(field.Message.GoIdent)
+		}
 		pointer = false // pointer captured as part of the type
 	}
 	switch {

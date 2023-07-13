@@ -5,6 +5,7 @@
 package impl
 
 import (
+	"fmt"
 	"math"
 	"sort"
 	"sync/atomic"
@@ -32,6 +33,7 @@ func (o marshalOptions) UseCachedSize() bool { return o.flags&piface.MarshalUseC
 
 // size is protoreflect.Methods.Size.
 func (mi *MessageInfo) size(in piface.SizeInput) piface.SizeOutput {
+	fmt.Println("fast size on ", mi.Desc.FullName())
 	var p pointer
 	if ms, ok := in.Message.(*messageState); ok {
 		p = ms.pointer()
@@ -88,6 +90,10 @@ func (mi *MessageInfo) sizePointerSlow(p pointer, opts marshalOptions) (size int
 		}
 		fptr := p.Apply(f.offset)
 
+		if f.isEmbed {
+			_fptr := fptr.p
+			fptr = pointerOf(Pointer(&_fptr))
+		}
 		if f.presenceIndex != noPresence {
 			if !presence.Present(f.presenceIndex) {
 				continue
@@ -178,6 +184,11 @@ func (mi *MessageInfo) marshalAppendPointer(b []byte, p pointer, opts marshalOpt
 			continue
 		}
 		fptr := p.Apply(f.offset)
+
+		if f.isEmbed {
+			_fptr := fptr.p
+			fptr = pointerOf(Pointer(&_fptr))
+		}
 
 		if f.presenceIndex != noPresence {
 			if !presence.Present(f.presenceIndex) {

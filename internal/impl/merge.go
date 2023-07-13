@@ -55,6 +55,11 @@ func (mi *MessageInfo) mergePointer(dst, src pointer, opts mergeOptions) {
 		}
 		sfptr := src.Apply(f.offset)
 
+		if f.isEmbed {
+			_sfptr := sfptr.p
+			sfptr = pointerOf(Pointer(&_sfptr))
+		}
+
 		if f.presenceIndex != noPresence {
 			if !presenceSrc.Present(f.presenceIndex) {
 				continue

@@ -52,6 +52,7 @@ type coderFieldInfo struct {
 
 	isLazy        bool
 	presenceIndex uint32
+	isEmbed       bool
 }
 
 const noPresence = 0xffffffff
@@ -92,6 +93,13 @@ func (mi *MessageInfo) makeCoderMethods(t reflect.Type, si structInfo) {
 		} else {
 			wiretag = protowire.EncodeTag(fd.Number(), protowire.BytesType)
 		}
+
+		isPointer := fd.Cardinality() == protoreflect.Repeated || fd.HasPresence()
+		isEmbed := isPointer && fs.Anonymous && ft.Kind() != reflect.Ptr
+		if isEmbed {
+			ft = reflect.PtrTo(ft)
+		}
+
 		var fieldOffset offset
 		var funcs pointerCoderFuncs
 		var childMessage *MessageInfo
@@ -133,10 +141,11 @@ func (mi *MessageInfo) makeCoderMethods(t reflect.Type, si structInfo) {
 			funcs:      funcs,
 			mi:         childMessage,
 			validation: newFieldValidationInfo(mi, si, fd, ft),
-			isPointer:  fd.Cardinality() == protoreflect.Repeated || fd.HasPresence(),
+			isPointer:  isPointer,
 			isRequired: fd.Cardinality() == protoreflect.Required,
 
 			presenceIndex: noPresence,
+			isEmbed:       isEmbed,
 		}
 		mi.orderedCoderFields = append(mi.orderedCoderFields, cf)
 		mi.coderFields[cf.num] = cf

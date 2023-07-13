@@ -79,7 +79,11 @@ func (mi *MessageInfo) checkInitializedPointer(p pointer) error {
 		}
 
 		fptr := p.Apply(f.offset)
-		if f.isPointer && fptr.Elem().IsNil() {
+		if f.isEmbed {
+			_fptr := fptr.p
+			fptr = pointerOf(Pointer(&_fptr))
+		}
+		if f.isPointer && fptr.Elem().IsNil() && f.isEmbed {
 			if f.isRequired {
 				return errors.RequiredNotSet(string(mi.Desc.Fields().ByNumber(f.num).FullName()))
 			}
