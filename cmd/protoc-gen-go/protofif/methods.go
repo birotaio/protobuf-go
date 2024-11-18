@@ -1,8 +1,11 @@
 package protofif
 
 import (
+	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/go-pg/pg/v10/types"
@@ -130,6 +133,35 @@ func (ts *Timestamp) UnmarshalBSON(data []byte) error {
 	}
 	*ts = NewTimestampValue(t)
 	return nil
+}
+
+func (ts *Timestamp) GormDataType() string {
+	return "datetime"
+}
+
+var _ sql.Scanner = (*Timestamp)(nil)
+
+func (ts *Timestamp) Scan(src interface{}) error {
+	switch casted := src.(type) {
+	case time.Time:
+		*ts = NewTimestampValue(casted)
+	case *time.Time:
+		if casted != nil {
+			*ts = NewTimestampValue(*casted)
+		}
+	default:
+		return fmt.Errorf("column of type %T cannot be scanned into a Timestamp", src)
+	}
+	return nil
+}
+
+var _ driver.Valuer = (*Timestamp)(nil)
+
+func (ts *Timestamp) Value() (driver.Value, error) {
+	if ts == nil {
+		return nil, nil
+	}
+	return ts.AsTimeValue(), nil
 }
 
 // Same thing for time.Duration
