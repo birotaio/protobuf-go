@@ -149,6 +149,12 @@ func (ts *Timestamp) Scan(src interface{}) error {
 		if casted != nil {
 			*ts = NewTimestampValue(*casted)
 		}
+	case string:
+		t, err := time.Parse(time.RFC3339, casted)
+		if err != nil {
+			return err
+		}
+		*ts = NewTimestampValue(t)
 	default:
 		return fmt.Errorf("column of type %T cannot be scanned into a Timestamp", src)
 	}
