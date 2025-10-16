@@ -432,6 +432,13 @@ func genMessageField(g *protogen.GeneratedFile, f *fileInfo, m *messageInfo, fie
 		})
 	}
 
+	if yamlTagsEnabled := proto.GetExtension(m.Desc.Options(), protofif.E_Yamltags).(bool); yamlTagsEnabled {
+		moretags.Set(&structtag.Tag{
+			Key:  "yaml",
+			Name: fmt.Sprintf("%s,omitempty", string(field.Desc.Name())),
+		})
+	}
+
 	if editableFalseEnabled := proto.GetExtension(m.Desc.Options(), protofif.E_NonEditable).(bool); editableFalseEnabled {
 		moretags.Set(&structtag.Tag{
 			Key:  "editable",
