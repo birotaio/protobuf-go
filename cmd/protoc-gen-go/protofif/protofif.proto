@@ -11,6 +11,8 @@ extend google.protobuf.MessageOptions {
   optional bool non_editable = 65002;
   // Defaults tag database:"default" on all go struct fields
   optional bool database_default = 65003;
+  // Defaults tag yaml:"<jsonname>,omitempty" on all go struct fields
+  optional bool yamltags = 65004;
 }
 
 extend google.protobuf.FieldOptions {
