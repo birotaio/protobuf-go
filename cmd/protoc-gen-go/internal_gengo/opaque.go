@@ -10,9 +10,12 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/fatih/structtag"
+	"google.golang.org/protobuf/cmd/protoc-gen-go/protofif"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/internal/filedesc"
 	"google.golang.org/protobuf/internal/genid"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -79,12 +82,17 @@ func opaqueGenMessageField(g *protogen.GeneratedFile, f *fileInfo, message *mess
 		return
 	}
 
+	embedStruct := proto.GetExtension(field.Desc.Options(), protofif.E_Embed).(bool)
+
 	goType, pointer := opaqueFieldGoType(g, f, message, field)
 	if pointer {
 		goType = "*" + goType
 	}
 	protobufTagValue := fieldProtobufTagValue(field)
 	jsonTagValue := fieldJSONTagValue(field)
+	if embedStruct {
+		jsonTagValue = ""
+	}
 	if g.InternalStripForEditionsDiff() {
 		if field.Desc.ContainingOneof() != nil && field.Desc.ContainingOneof().IsSynthetic() {
 			protobufTagValue = strings.ReplaceAll(protobufTagValue, ",oneof", "")
@@ -95,8 +103,52 @@ func opaqueGenMessageField(g *protogen.GeneratedFile, f *fileInfo, message *mess
 		{"protobuf", protobufTagValue},
 	}
 	if !message.isOpaque() {
-		tags = append(tags, structTags{{"json", jsonTagValue}}...)
+		if embedStruct {
+			tags = append(tags, structTags{{"json", ""}}...)
+		} else {
+			tags = append(tags, structTags{{"json", jsonTagValue}}...)
+		}
 	}
+
+	// Custom tags: bson, yaml, non_editable, database_default, moretags
+	moretags := structtag.Tags{}
+	if bsonTagsEnabled := proto.GetExtension(message.Desc.Options(), protofif.E_Bsontags).(bool); bsonTagsEnabled {
+		moretags.Set(&structtag.Tag{
+			Key:  "bson",
+			Name: fmt.Sprintf("%s,omitempty", string(field.Desc.Name())),
+		})
+	}
+	if yamlTagsEnabled := proto.GetExtension(message.Desc.Options(), protofif.E_Yamltags).(bool); yamlTagsEnabled {
+		moretags.Set(&structtag.Tag{
+			Key:  "yaml",
+			Name: fmt.Sprintf("%s,omitempty", string(field.Desc.Name())),
+		})
+	}
+	if editableFalseEnabled := proto.GetExtension(message.Desc.Options(), protofif.E_NonEditable).(bool); editableFalseEnabled {
+		moretags.Set(&structtag.Tag{
+			Key:  "editable",
+			Name: "false",
+		})
+	}
+	if databaseDefault := proto.GetExtension(message.Desc.Options(), protofif.E_DatabaseDefault).(bool); databaseDefault {
+		moretags.Set(&structtag.Tag{
+			Key:  "database",
+			Name: "default",
+		})
+	}
+	moreTagsString := proto.GetExtension(field.Desc.Options(), protofif.E_Moretags).(string)
+	if moreTagsString != "" {
+		parsedTags, err := structtag.Parse(moreTagsString)
+		if err != nil {
+			l.Printf("Error parsing moretags for field %s: %v", field.Desc.Name(), err)
+		} else {
+			for _, tag := range parsedTags.Tags() {
+				moretags.Set(tag)
+			}
+		}
+	}
+	tags.AddFromString(moretags.String())
+
 	if field.Desc.IsMap() {
 		keyTagValue := fieldProtobufTagValue(field.Message.Fields[0])
 		valTagValue := fieldProtobufTagValue(field.Message.Fields[1])
@@ -111,6 +163,9 @@ func opaqueGenMessageField(g *protogen.GeneratedFile, f *fileInfo, message *mess
 	name := field.GoName
 	if message.isOpaque() {
 		name = "xxx_hidden_" + name
+	}
+	if embedStruct {
+		name = ""
 	}
 
 	if message.isOpaque() {
@@ -127,14 +182,20 @@ func opaqueGenMessageField(g *protogen.GeneratedFile, f *fileInfo, message *mess
 				{"go", "track"},
 			}...)
 		}
-		g.AnnotateSymbol(field.Parent.GoIdent.GoName+"."+name, protogen.Annotation{Location: field.Location})
+		if !embedStruct {
+			g.AnnotateSymbol(field.Parent.GoIdent.GoName+"."+name, protogen.Annotation{Location: field.Location})
+		}
 		leadingComments := appendDeprecationSuffix(field.Comments.Leading,
 			field.Desc.ParentFile(),
 			field.Desc.Options().(*descriptorpb.FieldOptions).GetDeprecated())
+		space := " "
+		if embedStruct {
+			space = ""
+		}
 		g.P(leadingComments,
-			name, " ", goType, tags,
+			name, space, goType, tags,
 			trailingComment(field.Comments.Trailing))
-		sf.append(name)
+		sf.append(field.GoName)
 	}
 }
 
@@ -222,6 +283,10 @@ func opaqueGenMessageMethods(g *protogen.GeneratedFile, f *fileInfo, message *me
 	for _, field := range message.Fields {
 		if isFirstOneofField(field) && !message.isOpaque() {
 			opaqueGenGetOneof(g, f, message, field.Oneof)
+		}
+		// Skip getter for embed fields — their sub-message fields are promoted.
+		if embedStruct := proto.GetExtension(field.Desc.Options(), protofif.E_Embed).(bool); embedStruct {
+			continue
 		}
 		opaqueGenGet(g, f, message, field)
 	}
@@ -1076,7 +1141,12 @@ func opaqueFieldGoType(g *protogen.GeneratedFile, f *fileInfo, message *messageI
 		goType = "[]byte"
 		pointer = false
 	case protoreflect.MessageKind, protoreflect.GroupKind:
-		goType = opaqueMessageFieldGoType(g, f, field, message.isOpaque())
+		embedStruct := proto.GetExtension(field.Desc.Options(), protofif.E_Embed).(bool)
+		if embedStruct {
+			goType = g.QualifiedGoIdent(field.Message.GoIdent)
+		} else {
+			goType = opaqueMessageFieldGoType(g, f, field, message.isOpaque())
+		}
 		pointer = false
 	}
 	switch {
