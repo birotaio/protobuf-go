@@ -11,9 +11,6 @@ const (
 	SizeCache_goname  = "sizeCache"
 	SizeCacheA_goname = "XXX_sizecache"
 
-	WeakFields_goname  = "weakFields"
-	WeakFieldsA_goname = "XXX_weak"
-
 	UnknownFields_goname  = "unknownFields"
 	UnknownFieldsA_goname = "XXX_unrecognized"
 
@@ -21,5 +18,7 @@ const (
 	ExtensionFieldsA_goname = "XXX_InternalExtensions"
 	ExtensionFieldsB_goname = "XXX_extensions"
 
+	WeakFields_goname      = "weakFields"
+	WeakFieldsA_goname     = "XXX_weak"
 	WeakFieldPrefix_goname = "XXX_weak_"
 )

@@ -122,12 +122,12 @@ func (ts *Timestamp) MarshalBSONValue() (bsontype.Type, []byte, error) {
 	return bson.MarshalValue(ts.AsTime())
 }
 
-func (ts *Timestamp) UnmarshalBSON(data []byte) error {
+func (ts *Timestamp) UnmarshalBSONValue(btype bsontype.Type, data []byte) error {
 	if len(data) == 0 {
 		return nil
 	}
 	t := time.Time{}
-	err := bson.UnmarshalValue(bson.TypeDateTime, data, &t)
+	err := bson.UnmarshalValue(btype, data, &t)
 	if err != nil {
 		return err
 	}
