@@ -84,11 +84,18 @@ func (t *Timestamp) AsTimeValue() time.Time {
 
 func (ts *Timestamp) UnmarshalJSON(b []byte) error {
 	timeUnmarshaled := time.Time{}
-	err := json.Unmarshal(b, &timeUnmarshaled)
-	if err != nil {
-		return err
+	timeErr := json.Unmarshal(b, &timeUnmarshaled)
+	if timeErr == nil {
+		*ts = NewTimestampValue(timeUnmarshaled)
+		return nil
 	}
-	*ts = NewTimestampValue(timeUnmarshaled)
+
+	// Embedded devices report timestamps as bare epoch-seconds numbers.
+	var seconds int64
+	if err := json.Unmarshal(b, &seconds); err != nil {
+		return timeErr
+	}
+	*ts = NewTimestampValue(time.Unix(seconds, 0).UTC())
 	return nil
 }
 
