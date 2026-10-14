@@ -1,8 +1,11 @@
 package structpb
 
 import (
+	"time"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/bsontype"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
@@ -40,6 +43,14 @@ func NewBsonValue(t bsontype.Type, v []byte) (*Value, error) {
 			return nil, protoimpl.X.NewError("invalid string: %v | error: %v", v, err)
 		}
 		return NewStringValue(val), nil
+	case bson.TypeDateTime:
+		// Bson datetime to RFC 3339 string, since Value has no timestamp kind
+		var val primitive.DateTime
+		err := bson.UnmarshalValue(t, v, &val)
+		if err != nil {
+			return nil, protoimpl.X.NewError("invalid datetime: %v | error: %v", v, err)
+		}
+		return NewStringValue(formatBsonDateTime(val)), nil
 	case bson.TypeArray:
 		// Bson byte to list
 		var val []interface{}
@@ -63,6 +74,10 @@ func NewBsonValue(t bsontype.Type, v []byte) (*Value, error) {
 		if err != nil {
 			return nil, protoimpl.X.NewError("invalid struct: %v | error: %v", v, err)
 		}
+
+		// Arrays nested in the document are decoded as bson.A, which NewStruct rejects
+		val = SanitizeMongoTypes(val).(map[string]interface{})
+
 		v2, err := NewStruct(val)
 		if err != nil {
 			return nil, err
@@ -92,6 +107,8 @@ func (x *Value) UnmarshalBSONValue(t bsontype.Type, b []byte) error {
 // Sometimes objects are returned as bson.D or bson.M, this function will convert them to the correct go types for proto compatibility
 func SanitizeMongoTypes(val interface{}) interface{} {
 	switch v := val.(type) {
+	case primitive.DateTime:
+		return formatBsonDateTime(v)
 	case bson.D:
 		mapVal := make(map[string]interface{})
 		for _, item := range v {
@@ -110,6 +127,12 @@ func SanitizeMongoTypes(val interface{}) interface{} {
 			obj[key] = SanitizeMongoTypes(item)
 		}
 		return obj
+	case map[string]interface{}:
+		var obj = make(map[string]interface{})
+		for key, item := range v {
+			obj[key] = SanitizeMongoTypes(item)
+		}
+		return obj
 	case []interface{}:
 		var arr []interface{}
 		for _, item := range v {
@@ -119,6 +142,10 @@ func SanitizeMongoTypes(val interface{}) interface{} {
 	default:
 		return val
 	}
+}
+
+func formatBsonDateTime(dt primitive.DateTime) string {
+	return dt.Time().UTC().Format(time.RFC3339Nano)
 }
 
 // -------------------------------------------------------------- //
