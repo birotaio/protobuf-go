@@ -63,6 +63,10 @@ func NewBsonValue(t bsontype.Type, v []byte) (*Value, error) {
 		if err != nil {
 			return nil, protoimpl.X.NewError("invalid struct: %v | error: %v", v, err)
 		}
+
+		// Arrays nested in the document are decoded as bson.A, which NewStruct rejects
+		val = SanitizeMongoTypes(val).(map[string]interface{})
+
 		v2, err := NewStruct(val)
 		if err != nil {
 			return nil, err
@@ -105,6 +109,12 @@ func SanitizeMongoTypes(val interface{}) interface{} {
 		}
 		return arr
 	case bson.M:
+		var obj = make(map[string]interface{})
+		for key, item := range v {
+			obj[key] = SanitizeMongoTypes(item)
+		}
+		return obj
+	case map[string]interface{}:
 		var obj = make(map[string]interface{})
 		for key, item := range v {
 			obj[key] = SanitizeMongoTypes(item)
