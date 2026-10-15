@@ -98,7 +98,7 @@ func (d *Date) MarshalJSON() ([]byte, error) {
 	if d == nil {
 		return []byte("null"), nil
 	}
-	return json.Marshal(d.AsTimeValue())
+	return json.Marshal(d.Format())
 }
 
 func (d *Date) AppendValue(b []byte, flags int) ([]byte, error) {

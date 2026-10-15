@@ -75,7 +75,7 @@ func TestDateMarshalJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	if want := `{"birthdate":"1990-07-14T00:00:00Z"}`; string(b) != want {
+	if want := `{"birthdate":"1990-07-14"}`; string(b) != want {
 		t.Errorf("got %s, want %s", b, want)
 	}
 }
