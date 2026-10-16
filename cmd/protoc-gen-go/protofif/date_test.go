@@ -17,6 +17,7 @@ func TestDateUnmarshalJSON(t *testing.T) {
 	}{
 		{"date only", `"2026-05-11"`, "2026-05-11"},
 		{"utc midnight", `"2026-05-11T00:00:00Z"`, "2026-05-11"},
+		{"utc midnight with milliseconds", `"2026-05-11T00:00:00.000Z"`, "2026-05-11"},
 		{"offset midnight keeps the written day", `"2026-05-11T00:00:00+02:00"`, "2026-05-11"},
 		{"negative offset midnight keeps the written day", `"2026-05-11T00:00:00-10:00"`, "2026-05-11"},
 		{"leap day", `"2024-02-29"`, "2024-02-29"},

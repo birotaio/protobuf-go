@@ -50,7 +50,7 @@ func parseDate(s string) (time.Time, error) {
 		return t, nil
 	}
 
-	t, err := time.Parse(time.RFC3339Nano, s)
+	t, err := time.Parse(time.RFC3339, s)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("%w: %q is neither %s nor RFC 3339", ErrorInvalidDate, s, DateLayout)
 	}
