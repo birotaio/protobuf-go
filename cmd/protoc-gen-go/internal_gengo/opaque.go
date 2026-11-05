@@ -224,6 +224,8 @@ func opaqueGenOneofFields(g *protogen.GeneratedFile, f *fileInfo, message *messa
 		return
 	}
 
+	tags = append(tags, [2]string{"json", string(oneof.Desc.Name()) + ",omitempty"})
+
 	leadingComments := oneof.Comments.Leading
 	if leadingComments != "" {
 		leadingComments += "\n"
